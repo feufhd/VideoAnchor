@@ -40,7 +40,11 @@ Please follow the steps below to set up the environment and integrate VideoAncho
 
 ***We will release the code of VideoAnchor implementation with [FlashBias](https://github.com/thuml/FlashBias) recently.***
 
-**Please e-mail [me](wangzhaozhi22@mails.ucas.ac.cn) if you have any questions!**
+<p style="font-size: 1.2em;">
+  <strong>
+    Please e-mail <a href="mailto:wangzhaozhi22@mails.ucas.ac.cn">me</a> if you have any questions!
+  </strong>
+</p>
 
 ## Citation
 ```
