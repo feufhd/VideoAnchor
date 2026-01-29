@@ -38,6 +38,10 @@ Please follow the steps below to set up the environment and integrate VideoAncho
 5. **Evaluation**  
    Refer to the [thinking-in-space repository](https://github.com/vision-x-nyu/thinking-in-space) for the evaluation.
 
+***We will release the code of VideoAnchor implementation with [FlashBias](https://github.com/thuml/FlashBias) recently.***
+
+**Please e-mail [me](wangzhaozhi22@mails.ucas.ac.cn) if you have any questions!**
+
 ## Citation
 ```
 @article{wang2025videoanchor,
