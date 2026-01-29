@@ -1,8 +1,11 @@
 <div align="center">
-<h3 style="font-size: 1.1em;"><a href="https://www.arxiv.org/abs/2509.25151">
-VideoAnchor: Reinforcing Subspace-Structured Visual Cues for Coherent Visual-Spatial Reasoning
+<h3><a href="https://www.arxiv.org/abs/2509.25151">
+VideoAnchor: 
+
+<a href="https://www.arxiv.org/abs/2509.25151">
+Reinforcing Subspace-Structured Visual Cues for Coherent Visual-Spatial Reasoning
 </a></h3>
-<h3 style="font-size: 1.1em;">(Accepted by ICLR 2026)</h3>
+<h3>(Accepted by ICLR 2026)</h3>
 
 [ZhaoZhi Wang](https://feufhd.github.io/ZhaozhiWang/)<sup>1,2</sup>, [Tong Zhang](https://sites.google.com/view/tong-zhang)<sup>1</sup>, [Mingyue Guo](https://csguomy.github.io/)<sup>2</sup>, [Yaowei Wang](https://scholar.google.com.hk/citations?user=o_DllmIAAAAJ&hl=zh-CN&oi=ao)<sup>1,2</sup>, [Qixiang Ye](https://people.ucas.ac.cn/~0007279?language=en)<sup>1,2</sup>
 
