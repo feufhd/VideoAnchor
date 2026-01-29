@@ -1,7 +1,6 @@
 <div align="center">
 <h3><a href="https://www.arxiv.org/abs/2509.25151">
-VideoAnchor: 
-
+VideoAnchor: <br>
 Reinforcing Subspace-Structured Visual Cues for Coherent Visual-Spatial Reasoning
 </a></h3>
 <h3>(Accepted by ICLR 2026)</h3>
