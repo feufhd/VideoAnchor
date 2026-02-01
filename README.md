@@ -5,7 +5,7 @@ Reinforcing Subspace-Structured Visual Cues for Coherent Visual-Spatial Reasonin
 </a></h3>
 <h3>(Accepted by ICLR 2026)</h3>
 
-[ZhaoZhi Wang](https://feufhd.github.io/ZhaozhiWang/)<sup>1,2</sup>, [Tong Zhang](https://sites.google.com/view/tong-zhang)<sup>1</sup>, [Mingyue Guo](https://csguomy.github.io/)<sup>2</sup>, [Yaowei Wang](https://scholar.google.com.hk/citations?user=o_DllmIAAAAJ&hl=zh-CN&oi=ao)<sup>1,2</sup>, [Qixiang Ye](https://people.ucas.ac.cn/~0007279?language=en)<sup>1,2</sup>
+[ZhaoZhi Wang](https://feufhd.github.io/ZhaozhiWang/)<sup>1,2</sup>, [Tong Zhang](https://sites.google.com/view/tong-zhang)<sup>1</sup>, [Mingyue Guo](https://csguomy.github.io/)<sup>2</sup>, [Yaowei Wang](https://scholar.google.com.hk/citations?user=o_DllmIAAAAJ&hl=zh-CN&oi=ao)<sup>2</sup>, [Qixiang Ye](https://people.ucas.ac.cn/~0007279?language=en)<sup>1,2</sup>
 
 <sup>1</sup> University of Chinese Academy of Sciences, <sup>2</sup> Peng Cheng Laboratory
 
