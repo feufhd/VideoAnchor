@@ -194,7 +194,7 @@ class Qwen2_5_VL(lmms):
         pbar = tqdm(total=len(requests), disable=(self.rank != 0), desc="Model Responding")
 
         for contexts, gen_kwargs, doc_to_visual, doc_id, task, split, alpha_q, \
-        alpha_k, alpha_v, num_classes_total, num_classes_selected, pca_rank, cluster_method, rho, eps, layer_wise_scale, boost_layer in [reg.args for reg in requests]:
+        alpha_k, alpha_v, num_classes_total, pca_rank, cluster_method, rho, eps in [reg.args for reg in requests]:
 
             visuals = [doc_to_visual(self.task_dict[task][split][doc_id])]
             visuals = self.flatten(visuals)

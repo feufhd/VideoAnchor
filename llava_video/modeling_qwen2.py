@@ -355,9 +355,6 @@ class Qwen2Attention(nn.Module):
         attention_boost_q = None, # new
         attention_boost_k = None, # new
         attention_boost_v = None, # new
-        save_cluster_path = None, 
-        selected = None, 
-        decoder_layer_idx = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         bsz, q_len, _ = hidden_states.size()
         
@@ -425,17 +422,6 @@ class Qwen2Attention(nn.Module):
             attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype) 
         
         attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        
-        if True:
-            if save_cluster_path is not None and (selected.shape[0] == attn_weights.shape[-1]) and (decoder_layer_idx == 0):
-                attn_to_save = attn_weights.squeeze().mean(dim=0).float().cpu().numpy()
-
-                import numpy as np
-                if flag:
-                    save_attn_map = os.path.join(save_cluster_path, 'ssc4_attn_map.npy') # change here!
-                else:
-                    save_attn_map = os.path.join(save_cluster_path, 'baseline_attn_map.npy') # change here!
-                np.save(save_attn_map, attn_to_save)
         
         if attention_boost_v is not None:
             if attention_boost_v.device != value_states.device:
@@ -823,8 +809,6 @@ class Qwen2DecoderLayer(nn.Module):
         attention_boost_k = None, # new
         attention_boost_v = None, # new
         save_cluster_path = None, 
-        selected = None, 
-        decoder_layer_idx = None, 
         **kwargs,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
         """
@@ -867,8 +851,6 @@ class Qwen2DecoderLayer(nn.Module):
             attention_boost_k=attention_boost_k, # new
             attention_boost_v=attention_boost_v, # new
             save_cluster_path=save_cluster_path, 
-            selected=selected, 
-            decoder_layer_idx=decoder_layer_idx, 
         )
         
         hidden_states = residual + hidden_states
@@ -1062,7 +1044,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
         attention_boost_k = None, #new
         attention_boost_v = None, #new
         save_cluster_path = None, 
-        selected = None, 
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1138,8 +1119,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
                     attention_boost_k=attention_boost_k, #new
                     attention_boost_v=attention_boost_v, #new
                     save_cluster_path=save_cluster_path, 
-                    selected=selected, 
-                    decoder_layer_idx=idx,
                 )
             else:
                 layer_outputs = decoder_layer(
@@ -1155,8 +1134,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
                     attention_boost_k=attention_boost_k, #new
                     attention_boost_v=attention_boost_v, #new
                     save_cluster_path=save_cluster_path, 
-                    selected=selected, 
-                    decoder_layer_idx=idx,
                 )
 
             hidden_states = layer_outputs[0]
@@ -1304,7 +1281,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         attention_boost_k = None, #new
         attention_boost_v = None, #new
         save_cluster_path = None, 
-        selected = None, 
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -1359,7 +1335,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
             attention_boost_k=attention_boost_k, #new
             attention_boost_v=attention_boost_v, #new
             save_cluster_path=save_cluster_path, 
-            selected=selected, 
         )
 
         hidden_states = outputs[0]
@@ -1420,7 +1395,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         attention_boost_v = kwargs.get("attention_boost_v", None) # new add
         
         save_cluster_path = kwargs.get("save_cluster_path", None)
-        selected = kwargs.get("selected", None)
         
         if past_key_values is not None:
             if inputs_embeds is not None:  # Exception 1
@@ -1481,7 +1455,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
                 "attention_boost_k": attention_boost_k,  # new code ✅ 把它送进 forward!
                 "attention_boost_v": attention_boost_v,  # new code ✅ 把它送进 forward!
                 "save_cluster_path": save_cluster_path, 
-                "selected": selected, 
             }
         )
         return model_inputs

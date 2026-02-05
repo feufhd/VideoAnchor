@@ -778,8 +778,6 @@ class Qwen2_5_VLAttention(nn.Module):
         attention_boost_q = None,
         attention_boost_k = None,
         attention_boost_v = None,
-        selected = None, 
-        decoder_layer_idx = None, 
         save_cluster_path = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         bsz, q_len, _ = hidden_states.size()
@@ -857,17 +855,6 @@ class Qwen2_5_VLAttention(nn.Module):
         # attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
         # attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = torch.matmul(attn_weights, value_states)
-        
-        if selected is not None and False:
-            if save_cluster_path is not None and (selected.shape[0] == attn_weights.shape[-1]) and (decoder_layer_idx == 0) and True:   
-                attn_to_save = attn_weights.squeeze().mean(dim=0).float().cpu().numpy()
-
-                import numpy as np
-                if flag:
-                    save_attn_map = os.path.join(save_cluster_path, 'ssc4_attn_map.npy') # change here!
-                else:
-                    save_attn_map = os.path.join(save_cluster_path, 'baseline_attn_map.npy') # change here!
-                np.save(save_attn_map, attn_to_save)
         
         if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
             raise ValueError(
@@ -1139,8 +1126,6 @@ class Qwen2_5_VLDecoderLayer(nn.Module):
         attention_boost_q = None,
         attention_boost_k = None,
         attention_boost_v = None,
-        selected = None, 
-        decoder_layer_idx = None, 
         save_cluster_path = None, 
         **kwargs,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
@@ -1183,8 +1168,6 @@ class Qwen2_5_VLDecoderLayer(nn.Module):
             attention_boost_q = attention_boost_q,
             attention_boost_k = attention_boost_k,
             attention_boost_v = attention_boost_v,
-            selected = selected,
-            decoder_layer_idx = decoder_layer_idx,
             save_cluster_path=save_cluster_path,
         )
         hidden_states = residual + hidden_states
@@ -1253,7 +1236,6 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         attention_boost_q = None,
         attention_boost_k = None,
         attention_boost_v = None,
-        selected = None,
         save_cluster_path = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -1325,8 +1307,6 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                     attention_boost_q=attention_boost_q,
                     attention_boost_k=attention_boost_k,
                     attention_boost_v=attention_boost_v,
-                    selected=selected,
-                    decoder_layer_idx=idx,
                     save_cluster_path=save_cluster_path,
                 )
             else:
@@ -1342,8 +1322,6 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                     attention_boost_q=attention_boost_q,
                     attention_boost_k=attention_boost_k,
                     attention_boost_v=attention_boost_v,
-                    selected=selected,
-                    decoder_layer_idx=idx,
                     save_cluster_path=save_cluster_path,
                 )
 
@@ -2010,29 +1988,22 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         attention_boost_k = None
         attention_boost_v = None
         
-        if 'selected' in locals() and False:
-            import numpy as np
-            np.save(os.path.join(save_cluster_path, 'selected.npy'), selected.cpu().numpy())
-        
         # ssc_3 (add)
-        if (cluster_method == 'ssc_4') and (inputs_embeds.shape[1] > 1):
+        if (cluster_method == 'ssc') and (inputs_embeds.shape[1] > 1):
             if os.path.exists(os.path.join(save_cluster_path, "c0.pt")):
                 c0 = torch.load(os.path.join(save_cluster_path, "c0.pt")).to(inputs_embeds.device)
                 c1 = torch.load(os.path.join(save_cluster_path, "c1.pt")).to(inputs_embeds.device)
-                c2 = torch.load(os.path.join(save_cluster_path, "c2.pt")).to(inputs_embeds.device)
             else:
-                # 使用 sparse_subspace_clustering 获取 c0, c1, c2
-                c0, c1, c2 = sparse_subspace_clustering(inputs_embeds[:, selected].reshape(-1, inputs_embeds.shape[-1]).T.float().cpu().numpy(),
+                # 使用 sparse_subspace_clustering 获取 c0, c1
+                c0, c1, _ = sparse_subspace_clustering(inputs_embeds[:, selected].reshape(-1, inputs_embeds.shape[-1]).T.float().cpu().numpy(),
                                                          r=pca_rank, n_clusters=num_classes_total, rho=rho, eps=eps) # it's set eps=2e-2 before)
 
                 c0 = torch.tensor(c0)
                 c1 = torch.tensor(c1)
-                c2 = torch.tensor(c2)
 
                 if save_cluster_path is not None:
                     torch.save(c0, os.path.join(save_cluster_path, "c0.pt"))
                     torch.save(c1, os.path.join(save_cluster_path, "c1.pt"))
-                    torch.save(c2, os.path.join(save_cluster_path, "c2.pt"))
                     
             relation_sum = c1.to(torch.bfloat16).sum(dim=-1) #.to(inputs_embeds.device) #  / (c0.shape[0])).to(inputs_embeds.device)
 
@@ -2051,7 +2022,6 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             boost_factors_v = 1.0 + alpha_v * relation_sum
             del c0
             del c1
-            del c2
             del class_counts
             del relation_sum
 
@@ -2064,41 +2034,22 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             attention_boost_v = torch.ones_like(selected, dtype=boost_factors_v.dtype, device=inputs_embeds.device)  # 默认所有为 1.0
             attention_boost_v[selected] = boost_factors_v  # 用视觉增强值替换对应位置
         
-        if 'selected' in locals():
-            outputs = self.model(
-                input_ids=None,
-                position_ids=position_ids,
-                attention_mask=attention_mask,
-                past_key_values=past_key_values,
-                inputs_embeds=inputs_embeds,
-                use_cache=use_cache,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                return_dict=return_dict,
-                cache_position=cache_position,
-                attention_boost_q=attention_boost_q,
-                attention_boost_k=attention_boost_k,
-                attention_boost_v=attention_boost_v,
-                selected=selected, 
-                save_cluster_path=save_cluster_path,
-            )
-        else:
-            outputs = self.model(
-                input_ids=None,
-                position_ids=position_ids,
-                attention_mask=attention_mask,
-                past_key_values=past_key_values,
-                inputs_embeds=inputs_embeds,
-                use_cache=use_cache,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                return_dict=return_dict,
-                cache_position=cache_position,
-                attention_boost_q=attention_boost_q,
-                attention_boost_k=attention_boost_k,
-                attention_boost_v=attention_boost_v,
-                save_cluster_path=save_cluster_path,
-            )
+        outputs = self.model(
+            input_ids=None,
+            position_ids=position_ids,
+            attention_mask=attention_mask,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            cache_position=cache_position,
+            attention_boost_q=attention_boost_q,
+            attention_boost_k=attention_boost_k,
+            attention_boost_v=attention_boost_v,
+            save_cluster_path=save_cluster_path,
+        )
 
         hidden_states = outputs[0]
         logits = self.lm_head(hidden_states)

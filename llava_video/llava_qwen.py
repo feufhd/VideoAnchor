@@ -90,7 +90,6 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
         attention_boost_k=None, # new
         attention_boost_v=None, # new
         save_cluster_path = None, 
-        selected = None, 
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
         if inputs_embeds is None:
@@ -111,7 +110,6 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
                 attention_boost_k=attention_boost_k, # new
                 attention_boost_v=attention_boost_v, # new
                 save_cluster_path = save_cluster_path, 
-                selected = selected, 
             )
 
             hidden_states = outputs[0]
@@ -134,7 +132,6 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
                 attention_boost_k=attention_boost_k, # new
                 attention_boost_v=attention_boost_v, # new
                 save_cluster_path = save_cluster_path, 
-                selected = selected, 
             )
 
     @torch.no_grad()
@@ -148,7 +145,6 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
         alpha_k = None, 
         alpha_v = None,
         num_classes_total = None,
-        num_classes_selected = None, 
         pca_rank = None, 
         cluster_method = None, 
         rho = None,
@@ -195,30 +191,23 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
         attention_boost_q = None
         attention_boost_k = None
         attention_boost_v = None
-        
-        if True:
-            import numpy as np
-            np.save(os.path.join(save_cluster_path, 'selected.npy'), selected.cpu().numpy())
 
         # ssc_3 (add)
-        if cluster_method == 'ssc_4':
+        if cluster_method == 'ssc':
             if os.path.exists(os.path.join(save_cluster_path, "c0.pt")):
                 c0 = torch.load(os.path.join(save_cluster_path, "c0.pt")).to(vit_embeds.device)
                 c1 = torch.load(os.path.join(save_cluster_path, "c1.pt")).to(vit_embeds.device)
-                c2 = torch.load(os.path.join(save_cluster_path, "c2.pt")).to(vit_embeds.device)
             else:
-                # 使用 sparse_subspace_clustering 获取 c0, c1, c2
-                c0, c1, c2 = sparse_subspace_clustering(vit_embeds.reshape(-1, vit_embeds.shape[-1]).T.float().cpu().numpy(),
+                # 使用 sparse_subspace_clustering 获取 c0, c1
+                c0, c1, _ = sparse_subspace_clustering(vit_embeds.reshape(-1, vit_embeds.shape[-1]).T.float().cpu().numpy(),
                                                          r=pca_rank, n_clusters=num_classes_total, rho=rho, eps=eps) # it's set eps=2e-2 before)
 
                 c0 = torch.tensor(c0)
                 c1 = torch.tensor(c1)
-                c2 = torch.tensor(c2)
 
                 if save_cluster_path is not None:
                     torch.save(c0, os.path.join(save_cluster_path, "c0.pt"))
                     torch.save(c1, os.path.join(save_cluster_path, "c1.pt"))
-                    torch.save(c2, os.path.join(save_cluster_path, "c2.pt"))
                     
             relation_sum = c1.to(torch.bfloat16).sum(dim=-1) #.to(inputs_embeds.device) #  / (c0.shape[0])).to(inputs_embeds.device)
 
@@ -248,11 +237,11 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
             attention_boost_v[selected] = boost_factors_v  # 用视觉增强值替换对应位置
         
         if cluster_method is not None:
-            return super().generate(position_ids=position_ids, attention_mask=attention_mask, inputs_embeds=inputs_embeds, attention_boost_q=attention_boost_q, attention_boost_k=attention_boost_k, attention_boost_v=attention_boost_v, save_cluster_path=save_cluster_path, selected=selected, **kwargs)
+            return super().generate(position_ids=position_ids, attention_mask=attention_mask, inputs_embeds=inputs_embeds, attention_boost_q=attention_boost_q, attention_boost_k=attention_boost_k, attention_boost_v=attention_boost_v, save_cluster_path=save_cluster_path, **kwargs)
         else:
-            return super().generate(position_ids=position_ids, attention_mask=attention_mask, inputs_embeds=inputs_embeds, save_cluster_path=save_cluster_path, selected=selected, **kwargs)
+            return super().generate(position_ids=position_ids, attention_mask=attention_mask, inputs_embeds=inputs_embeds, save_cluster_path=save_cluster_path, **kwargs)
 
-    def prepare_inputs_for_generation(self, input_ids, past_key_values=None, inputs_embeds=None, attention_boost_q=None, attention_boost_k=None, attention_boost_v=None, save_cluster_path=None, selected=None, **kwargs):
+    def prepare_inputs_for_generation(self, input_ids, past_key_values=None, inputs_embeds=None, attention_boost_q=None, attention_boost_k=None, attention_boost_v=None, save_cluster_path=None, **kwargs):
         images = kwargs.pop("images", None)
         image_sizes = kwargs.pop("image_sizes", None)
         # attention_boost_k = kwargs.get("attention_boost_k", None) # new add
@@ -270,8 +259,6 @@ class LlavaQwenForCausalLM(Qwen2ForCausalLM, LlavaMetaForCausalLM):
             inputs['attention_boost_v'] = attention_boost_v
         if save_cluster_path is not None:
             inputs['save_cluster_path'] = save_cluster_path
-        if selected is not None:
-            inputs['selected'] = selected
             
         return inputs
 

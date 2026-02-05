@@ -316,7 +316,7 @@ class InternVL2(lmms):
         pbar = tqdm(total=len(requests), disable=(self.rank != 0), desc="Model Responding")
         
         for contexts, gen_kwargs, doc_to_visual, doc_id, task, split, alpha_q, \
-        alpha_k, alpha_v, num_classes_total, num_classes_selected, pca_rank, cluster_method, rho, eps, layer_wise_scale, boost_layer in [reg.args for reg in requests]:
+        alpha_k, alpha_v, num_classes_total, pca_rank, cluster_method, rho, eps in [reg.args for reg in requests]:
             if "until" in gen_kwargs:
                 gen_kwargs.pop("until")
             for k, v in DEFAULT_GEN_KWARGS.items():
@@ -351,8 +351,6 @@ class InternVL2(lmms):
                     assert len(visuals) == 1, f"Only one video is supported, but got {len(visuals)} videos."
                     video_path = visuals[0]
                     pixel_values, num_patches_list = load_video(video_path, num_segments=self.max_frames_num, max_num=1)
-                        
-                    # import pdb; pdb.set_trace()
                     
                     pixel_values = pixel_values.to(torch.bfloat16).cuda()
                     video_prefix = "".join([f"Frame{i+1}: <image>\n" for i in range(len(num_patches_list))])
@@ -366,15 +364,9 @@ class InternVL2(lmms):
                             save_cluster_path = os.path.join(save_cluster_root_path, f"{doc_id:04d}")
                             os.makedirs(save_cluster_path, exist_ok=True)
                     
-                    if layer_wise_scale is None:
-                        response, history = self.model.chat(self.tokenizer, pixel_values, question, gen_kwargs, num_patches_list=num_patches_list, history=None, return_history=True, \
-                                                            alpha_q=alpha_q, alpha_k=alpha_k, alpha_v=alpha_v, num_classes_total=num_classes_total, num_classes_selected=num_classes_selected, \
+                    response, history = self.model.chat(self.tokenizer, pixel_values, question, gen_kwargs, num_patches_list=num_patches_list, history=None, return_history=True, \
+                                                            alpha_q=alpha_q, alpha_k=alpha_k, alpha_v=alpha_v, num_classes_total=num_classes_total, \
                                                             pca_rank=pca_rank, cluster_method=cluster_method, rho=rho, eps=eps, save_cluster_path=save_cluster_path)
-                    else:
-                        response, history = self.model.chat(self.tokenizer, pixel_values, question, gen_kwargs, num_patches_list=num_patches_list, history=None, return_history=True, \
-                                                            alpha_q=alpha_q, alpha_k=alpha_k, alpha_v=alpha_v, num_classes_total=num_classes_total, num_classes_selected=num_classes_selected, \
-                                                            pca_rank=pca_rank, cluster_method=cluster_method, rho=rho, eps=eps, layer_wise_scale=layer_wise_scale, \
-                                                            boost_layer=boost_layer, save_cluster_path=save_cluster_path)
             else:
                 response, history = self.model.chat(self.tokenizer, None, contexts, gen_kwargs, num_patches_list=None, history=None, return_history=True)
                 

@@ -365,39 +365,9 @@ class LlavaVid(lmms):
         #for contexts, gen_kwargs, doc_to_visual, doc_id, task, split in [reg.args for reg in requests]:
         
         for contexts, gen_kwargs, doc_to_visual, doc_id, task, split, \
-        alpha_q, alpha_k, alpha_v, num_classes_total, num_classes_selected, pca_rank, cluster_method, rho, eps, layer_wise_scale, boost_layer in [reg.args for reg in requests]:
+        alpha_q, alpha_k, alpha_v, num_classes_total, pca_rank, cluster_method, rho, eps in [reg.args for reg in requests]:
             # encode, pad, and truncate contexts for this batch
             visuals = [doc_to_visual(self.task_dict[task][split][doc_id])]
-            
-            if True: # for vis
-                import os
-                
-                # 确保分布式环境已初始化
-                if dist.is_initialized():
-                    rank = dist.get_rank()  # 获取当前进程的 rank
-                    world_size = dist.get_world_size()  # 获取总进程数
-                else:
-                    rank = 0
-                    world_size = 1
-
-#                 # **仅主进程创建空映射文件**
-#                 if rank == 0 and doc_id == 0:
-#                     with open(map_file, "w") as f:
-#                         json.dump({}, f)  # 先写入一个空的 JSON 结构
-                        
-                # **所有进程等待主进程完成文件初始化**
-                if dist.is_initialized():
-                    dist.barrier()
-                
-                    # **使用for循环按顺序更新每个rank的映射**
-                    for r in list(range(16)):
-                        if rank == r:
-                            # update_mapping(rank, directory, map_file)
-                            # print(f"Rank {rank} will save to: {directory}")
-                            dist.barrier()
-
-                        # 同步，确保所有进程都完成映射更新
-                        dist.barrier()
             
             if visuals != [None]:
                 visuals = self.flatten(visuals)
@@ -487,7 +457,6 @@ class LlavaVid(lmms):
                         alpha_k=alpha_k,
                         alpha_v=alpha_v,
                         num_classes_total=num_classes_total,
-                        num_classes_selected=num_classes_selected,
                         pca_rank=pca_rank,
                         cluster_method=cluster_method,
                         rho=rho,

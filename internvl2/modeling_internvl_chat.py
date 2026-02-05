@@ -264,8 +264,8 @@ class InternVLChatModel(PreTrainedModel):
 
     def chat(self, tokenizer, pixel_values, question, generation_config, history=None, return_history=False,
              num_patches_list=None, IMG_START_TOKEN='<img>', IMG_END_TOKEN='</img>', IMG_CONTEXT_TOKEN='<IMG_CONTEXT>', 
-             alpha_q=None, alpha_k=None, alpha_v=None, num_classes_total=None, num_classes_selected=None, 
-             pca_rank=None, cluster_method=None, rho=None, eps=None, layer_wise_scale=None, boost_layer=None, save_cluster_path=None, verbose=False):
+             alpha_q=None, alpha_k=None, alpha_v=None, num_classes_total=None, 
+             pca_rank=None, cluster_method=None, rho=None, eps=None, save_cluster_path=None, verbose=False):
         
         if history is None and pixel_values is not None and '<image>' not in question:
             question = '<image>\n' + question
@@ -309,13 +309,10 @@ class InternVLChatModel(PreTrainedModel):
             alpha_k=alpha_k, # new code
             alpha_v=alpha_v, # new code
             num_classes_total=num_classes_total, # new code
-            num_classes_selected=num_classes_selected, # new code
             pca_rank=pca_rank, # new code
             cluster_method=cluster_method, # new code
             rho=rho, # new code
             eps=eps, # new code
-            layer_wise_scale=layer_wise_scale, # new code
-            boost_layer=boost_layer, # new code
             save_cluster_path=save_cluster_path, 
             **generation_config
         )
@@ -349,13 +346,10 @@ class InternVLChatModel(PreTrainedModel):
             alpha_k = None, 
             alpha_v = None,
             num_classes_total = None,
-            num_classes_selected = None, 
             pca_rank = None, 
             cluster_method = None, 
             rho = None,
             eps = None, 
-            layer_wise_scale = None,
-            boost_layer = None,
             save_cluster_path = None, 
             **generate_kwargs,
     ) -> torch.LongTensor:
@@ -374,61 +368,35 @@ class InternVLChatModel(PreTrainedModel):
             selected = (input_ids == self.img_context_token_id)
             assert selected.sum() != 0
             
-            # import pdb; pdb.set_trace()
-            
             attention_boost_q = None
             attention_boost_k = None
             attention_boost_v = None
-            
-            if False:
-                import numpy as np
-                np.save(os.path.join(save_cluster_path, 'selected.npy'), selected.cpu().numpy())
                 
             # ssc_3 (add)
-            if cluster_method == 'ssc_4':
+            if cluster_method == 'ssc':
                 
                 if save_cluster_path is not None:
                     if os.path.exists(os.path.join(save_cluster_path, "c0.pt")):
                         c0 = torch.load(os.path.join(save_cluster_path, "c0.pt")).to(vit_embeds.device)
                         c1 = torch.load(os.path.join(save_cluster_path, "c1.pt")).to(vit_embeds.device)
-                        c2 = torch.load(os.path.join(save_cluster_path, "c2.pt")).to(vit_embeds.device)
                     else:
                         # 使用 sparse_subspace_clustering 获取 c0, c1, c2
-                        c0, c1, c2 = sparse_subspace_clustering(vit_embeds.reshape(-1, vit_embeds.shape[-1]).T.float().cpu().numpy(),
+                        c0, c1, _ = sparse_subspace_clustering(vit_embeds.reshape(-1, vit_embeds.shape[-1]).T.float().cpu().numpy(),
                                                                  r=pca_rank, n_clusters=num_classes_total, rho=rho, eps=eps) # it's set eps=2e-2 before)
-                        
-                        if False:
-                            umap_vis_path = os.path.join(save_cluster_path, 'umap_vis')
-                            os.makedirs(umap_vis_path, exist_ok=True)
-                            import numpy as np
-                            np.save(os.path.join(umap_vis_path, 'visual_embeds.npy'), vit_embeds.reshape(-1, vit_embeds.shape[-1]).float().cpu().numpy())
-                            np.save(os.path.join(umap_vis_path, 'c0.npy'), c0)
-                            np.save(os.path.join(umap_vis_path, 'c1.npy'), c1)
-                            np.save(os.path.join(umap_vis_path, 'c2.npy'), c2)
-                            kmeans_model = KMeans(n_clusters=num_classes_total)
-                            if pca_rank > 0:
-                                pca = PCA(n_components = pca_rank)
-                                labels_kmeans = kmeans_model.fit_predict(pca.fit_transform(vit_embeds.reshape(-1, vit_embeds.shape[-1]).float().cpu().numpy()))
-                            else:
-                                labels_kmeans = kmeans_model.fit_predict(vit_embeds.reshape(-1, vit_embeds.shape[-1]).float().cpu().numpy())
-                            np.save(os.path.join(umap_vis_path, 'labels_kmeans.npy'), labels_kmeans)
                             
                         c0 = torch.tensor(c0)
                         c1 = torch.tensor(c1)
-                        c2 = torch.tensor(c2)
 
                         if save_cluster_path is not None:
                             torch.save(c0, os.path.join(save_cluster_path, "c0.pt"))
                             torch.save(c1, os.path.join(save_cluster_path, "c1.pt"))
-                            torch.save(c2, os.path.join(save_cluster_path, "c2.pt"))
                 else:
                     # 使用 sparse_subspace_clustering 获取 c0, c1, c2
-                    c0, c1, c2 = sparse_subspace_clustering(vit_embeds.reshape(-1, vit_embeds.shape[-1]).T.float().cpu().numpy(),
+                    c0, c1, _ = sparse_subspace_clustering(vit_embeds.reshape(-1, vit_embeds.shape[-1]).T.float().cpu().numpy(),
                                                              r=pca_rank, n_clusters=num_classes_total, rho=rho, eps=eps) # it's set eps=2e-2 before)
 
                     c0 = torch.tensor(c0)
                     c1 = torch.tensor(c1)
-                    c2 = torch.tensor(c2)
                 
                 relation_sum = c1.to(torch.bfloat16).sum(dim=-1) #.to(inputs_embeds.device) #  / (c0.shape[0])).to(inputs_embeds.device)
 
@@ -474,7 +442,6 @@ class InternVLChatModel(PreTrainedModel):
             attention_boost_k=attention_boost_k, # new (2048)
             attention_boost_v=attention_boost_v, # new (2048)
             save_cluster_path=save_cluster_path, 
-            selected=selected, 
             # output_attentions=True, # new
             **generate_kwargs,
         )

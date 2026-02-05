@@ -370,11 +370,6 @@ class InternLM2Attention(nn.Module):
         attention_boost_q = None, 
         attention_boost_k = None,
         attention_boost_v = None, 
-        save_cluster_path = None, 
-        selected = None, 
-        decoder_layer_idx = None,
-        cur_rollout = None, 
-        return_rollout = False, 
         **kwargs,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         if 'padding_mask' in kwargs:
@@ -440,19 +435,12 @@ class InternLM2Attention(nn.Module):
             attention_boost_k = None
             attention_boost_v = None
         
-        flag = False
-        
         if attention_boost_k is not None:
-            flag = True
             if attn_weights.shape[-1] != attention_boost_k.shape[0]:
                 # 生成阶段：拼接一个 1.0 给新 token
                 attention_boost_q = torch.cat([attention_boost_q, torch.ones(attn_weights.shape[-1] - attention_boost_q.shape[0], device=attention_boost_q.device)])
                 attention_boost_k = torch.cat([attention_boost_k, torch.ones(attn_weights.shape[-1] - attention_boost_k.shape[0], device=attention_boost_k.device)])
                 attention_boost_v = torch.cat([attention_boost_v, torch.ones(attn_weights.shape[-1] - attention_boost_v.shape[0], device=attention_boost_v.device)])
-            
-#             # new (test before softmax)
-#             attn_weights = attn_weights * attention_boost_q.view(1, 1, -1, 1).to(attn_weights.device) * attention_boost_k.view(1, 1, 1, -1).to(attn_weights.device)
-#             attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype) 
 
             if attention_boost_k.device != attn_weights.device:
                 attn_weights = my_softmax(attn_weights, attention_boost_q.to(attn_weights.device), attention_boost_k.to(attn_weights.device)).to(query_states.dtype)
@@ -487,8 +475,6 @@ class InternLM2Attention(nn.Module):
 
         attn_output = self.wo(attn_output)
         
-        if return_rollout:
-            return attn_output, attn_weights, past_key_value, cur_rollout
         return attn_output, attn_weights, past_key_value
 
 
@@ -696,10 +682,6 @@ class InternLM2DecoderLayer(nn.Module):
         attention_boost_k = None,
         attention_boost_v = None,
         save_cluster_path = None, 
-        selected = None, 
-        decoder_layer_idx = None, 
-        return_rollout = False, 
-        cur_rollout = None,
         **kwargs,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
         """
@@ -726,45 +708,20 @@ class InternLM2DecoderLayer(nn.Module):
 
         hidden_states = self.attention_norm(hidden_states)
         
-        if not return_rollout:
-            # Self Attention
-            hidden_states, self_attn_weights, present_key_value = self.attention(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-                attention_boost_q=attention_boost_q, 
-                attention_boost_k=attention_boost_k,
-                attention_boost_v=attention_boost_v,
-                save_cluster_path=save_cluster_path, 
-                selected=selected, 
-                decoder_layer_idx=decoder_layer_idx, 
-                **kwargs,
-            )
-        else:
-            # Self Attention
-            hidden_states, self_attn_weights, present_key_value, cur_rollout = self.attention(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-                attention_boost_q=attention_boost_q, 
-                attention_boost_k=attention_boost_k,
-                attention_boost_v=attention_boost_v,
-                save_cluster_path=save_cluster_path, 
-                selected=selected, 
-                decoder_layer_idx=decoder_layer_idx, 
-                cur_rollout=cur_rollout,
-                return_rollout=True,
-                **kwargs,
-            )
-        
-#         print("decoder layer !!!!")
-#         import pdb; pdb.set_trace()
+        # Self Attention
+        hidden_states, self_attn_weights, present_key_value = self.attention(
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_value=past_key_value,
+            output_attentions=output_attentions,
+            use_cache=use_cache,
+            attention_boost_q=attention_boost_q, 
+            attention_boost_k=attention_boost_k,
+            attention_boost_v=attention_boost_v,
+            save_cluster_path=save_cluster_path, 
+            **kwargs,
+        )
         
         hidden_states = residual + hidden_states
 
@@ -782,8 +739,6 @@ class InternLM2DecoderLayer(nn.Module):
         if use_cache:
             outputs += (present_key_value,)
         
-        if return_rollout:
-            return outputs, cur_rollout
         return outputs
 
 
@@ -971,9 +926,7 @@ class InternLM2Model(InternLM2PreTrainedModel):
         attention_boost_k = None, # new code
         attention_boost_v = None, # new code
         save_cluster_path = None, 
-        selected = None, 
         return_dict: Optional[bool] = None,
-        return_rollout = False,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         
         # import pdb; pdb.set_trace()
@@ -1042,97 +995,45 @@ class InternLM2Model(InternLM2PreTrainedModel):
         all_self_attns = () if output_attentions else None
         next_decoder_cache = () if use_cache else None
         
-        if return_rollout:
-            cur_rollout = None
-        
         for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
             past_key_value = past_key_values[idx] if past_key_values is not None else None
             
-            if not return_rollout:
-                if self.gradient_checkpointing and self.training:
+            if self.gradient_checkpointing and self.training:
 
-                    def create_custom_forward(module):
-                        def custom_forward(*inputs):
-                            # None for past_key_value
-                            return module(*inputs, output_attentions, None)
+                def create_custom_forward(module):
+                    def custom_forward(*inputs):
+                        # None for past_key_value
+                        return module(*inputs, output_attentions, None)
 
-                        return custom_forward
+                    return custom_forward
 
-                    layer_outputs = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(decoder_layer),
-                        hidden_states,
-                        attention_mask,
-                        position_ids,
-                        None,
-                        attention_boost_q=attention_boost_q,
-                        attention_boost_k=attention_boost_k,
-                        attention_boost_v=attention_boost_v,
-                        save_cluster_path=save_cluster_path, 
-                        selected=selected, 
-                        decoder_layer_idx=idx,
-                    )
-                else:
-                    layer_outputs = decoder_layer(
-                        hidden_states,
-                        attention_mask=attention_mask,
-                        position_ids=position_ids,
-                        past_key_value=past_key_value,
-                        output_attentions=output_attentions,
-                        use_cache=use_cache,
-                        attention_boost_q=attention_boost_q,
-                        attention_boost_k=attention_boost_k,
-                        attention_boost_v=attention_boost_v,
-                        save_cluster_path=save_cluster_path, 
-                        selected=selected, 
-                        decoder_layer_idx=idx,
-                    )
+                layer_outputs = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(decoder_layer),
+                    hidden_states,
+                    attention_mask,
+                    position_ids,
+                    None,
+                    attention_boost_q=attention_boost_q,
+                    attention_boost_k=attention_boost_k,
+                    attention_boost_v=attention_boost_v,
+                    save_cluster_path=save_cluster_path, 
+                )
             else:
-                if self.gradient_checkpointing and self.training:
-
-                    def create_custom_forward(module):
-                        def custom_forward(*inputs):
-                            # None for past_key_value
-                            return module(*inputs, output_attentions, None)
-
-                        return custom_forward
-
-                    layer_outputs, cur_rollout = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(decoder_layer),
-                        hidden_states,
-                        attention_mask,
-                        position_ids,
-                        None,
-                        attention_boost_q=attention_boost_q,
-                        attention_boost_k=attention_boost_k,
-                        attention_boost_v=attention_boost_v,
-                        save_cluster_path=save_cluster_path, 
-                        selected=selected, 
-                        decoder_layer_idx=idx,
-                        return_rollout=True,
-                        cur_rollout=cur_rollout,
-                    )
-                else:
-                    layer_outputs, cur_rollout = decoder_layer(
-                        hidden_states,
-                        attention_mask=attention_mask,
-                        position_ids=position_ids,
-                        past_key_value=past_key_value,
-                        output_attentions=output_attentions,
-                        use_cache=use_cache,
-                        attention_boost_q=attention_boost_q,
-                        attention_boost_k=attention_boost_k,
-                        attention_boost_v=attention_boost_v,
-                        save_cluster_path=save_cluster_path, 
-                        selected=selected, 
-                        decoder_layer_idx=idx,
-                        return_rollout=True,
-                        cur_rollout=cur_rollout,
-                    )
-                
-                # import pdb; pdb.set_trace()
+                layer_outputs = decoder_layer(
+                    hidden_states,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    past_key_value=past_key_value,
+                    output_attentions=output_attentions,
+                    use_cache=use_cache,
+                    attention_boost_q=attention_boost_q,
+                    attention_boost_k=attention_boost_k,
+                    attention_boost_v=attention_boost_v,
+                    save_cluster_path=save_cluster_path, 
+                )
 
             hidden_states = layer_outputs[0]
 
@@ -1210,7 +1111,6 @@ class InternLM2ForCausalLM(InternLM2PreTrainedModel):
         attention_boost_k = None, # new add
         attention_boost_v = None, # new add
         save_cluster_path = None, 
-        selected = None, 
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
@@ -1260,7 +1160,6 @@ class InternLM2ForCausalLM(InternLM2PreTrainedModel):
             attention_boost_k=attention_boost_k,
             attention_boost_v=attention_boost_v,
             save_cluster_path=save_cluster_path, 
-            selected=selected, 
         )
         
         hidden_states = outputs[0]
@@ -1306,7 +1205,6 @@ class InternLM2ForCausalLM(InternLM2PreTrainedModel):
         attention_boost_k = kwargs.get("attention_boost_k", None) # new add
         attention_boost_v = kwargs.get("attention_boost_v", None) # new add
         save_cluster_path = kwargs.get("save_cluster_path", None)
-        selected = kwargs.get("selected", None)
         
         if past_key_values is not None:
             past_length = past_key_values[0][0].shape[2]
@@ -1344,7 +1242,6 @@ class InternLM2ForCausalLM(InternLM2PreTrainedModel):
                 "attention_boost_k": attention_boost_k, 
                 "attention_boost_v": attention_boost_v, 
                 "save_cluster_path": save_cluster_path, 
-                "selected": selected, 
             }
         )
         return model_inputs

@@ -25,14 +25,24 @@ Please follow the steps below to set up the environment and integrate VideoAncho
    cd ..
    ```
 
-3. **Integrate Model Wrappers**  
-   Move the following files into the lmms_eval/models directory:
-- internvl2/internvl2.py
-- llava_video/llava_vid.py
-- qwen2.5vl/qwen2_5_vl.py
+### 3. Integrate Model Wrappers
+
+To unify the evaluation interface and align with the `lmms_eval` framwork, please relocate the following files:
+
+- **Core entry & API**
+  - Move `lmms_eval_general/__main__.py` → `lmms_eval/__main__.py`
+  - Move `lmms_eval_general/task.py` → `lmms_eval/api/task.py`
+
+- **Model wrappers**
+
+  Move the following model wrapper implementations into the `lmms_eval/models/` directory:
+  - `internvl2/internvl2.py`
+  - `llava_video/llava_vid.py`
+  - `qwen2.5vl/qwen2_5_vl.py`
+
 
 4. **Update Dependencies**  
-   Move other files to the right places in *transformers* or the model folder.
+   Move other model files to the right places in *transformers* or the model folder.
 
 5. **Evaluation**  
    Refer to the [thinking-in-space repository](https://github.com/vision-x-nyu/thinking-in-space) for the evaluation.
