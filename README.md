@@ -11,14 +11,27 @@ Reinforcing Subspace-Structured Visual Cues for Coherent Visual-Spatial Reasonin
 
 </div>
 
+## Abstract
+
+Multimodal Large Language Models (MLLMs) have achieved impressive progress in vision–language alignment, yet they remain limited in visual–spatial reasoning. We first identify that this limitation arises from the attention mechanism: visual tokens are overshadowed by language tokens, preventing the model from consistently recognizing the same visual cues across frames. To address this challenge, we draw a novel connection between the self-expressiveness property in sparse subspace clustering and the attention mechanism in Transformers. Building on this insight, we propose VideoAnchor, a plug-and-play module that leverages subspace affinities to reinforce visual cues across frames without retraining, effectively anchoring attention to shared visual structures. Extensive experiments across benchmarks and backbone models show consistent performance gains — e.g., 3.2% and 4.6% improvements on VSI-Bench and Video-MME (spatial-related tasks) with InternVL2-8B and Qwen2.5VL-72B—while qualitative analyses demonstrate more coherent subspace partitions and stronger visual grounding.
+
+<div style="width:85%; margin: 0 auto; text-align: left;">
+  <img src="figs/iclr2026_teaser.png" style="width:100%;">
+  <p>
+    <em>
+      Effect of the proposed VideoAnchor. Attention activations over shared regions (e.g., the sofa) across frames show how consistent patterns are anchored to enhance visual-spatial reasoning, enabling more precise object co-location and contextual proximity than InternVL2-8B (baseline).
+    </em>
+  </p>
+</div>
+
 ## Getting Started
 
 Please follow the steps below to set up the environment and integrate VideoAnchor for VSI-Bench evaluation:
 
-1. **Environment Setup**  
+- **Environment Setup**  
    Refer to the [thinking-in-space repository](https://github.com/vision-x-nyu/thinking-in-space) and [SSC-Py-CUDA](https://github.com/XHMY/SSC-Py-CUDA) for environment installation instructions, which we gratefully acknowledge. 
 
-2. **Install SSC**  
+- **Install SSC**  
    ```bash
    cd SSC-Py-CUDA
    pip install -e .
