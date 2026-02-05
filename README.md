@@ -15,7 +15,7 @@ Reinforcing Subspace-Structured Visual Cues for Coherent Visual-Spatial Reasonin
 
 Multimodal Large Language Models (MLLMs) have achieved impressive progress in vision–language alignment, yet they remain limited in visual–spatial reasoning. We first identify that this limitation arises from the attention mechanism: visual tokens are overshadowed by language tokens, preventing the model from consistently recognizing the same visual cues across frames. To address this challenge, we draw a novel connection between the self-expressiveness property in sparse subspace clustering and the attention mechanism in Transformers. Building on this insight, we propose VideoAnchor, a plug-and-play module that leverages subspace affinities to reinforce visual cues across frames without retraining, effectively anchoring attention to shared visual structures. Extensive experiments across benchmarks and backbone models show consistent performance gains — e.g., 3.2% and 4.6% improvements on VSI-Bench and Video-MME (spatial-related tasks) with InternVL2-8B and Qwen2.5VL-72B—while qualitative analyses demonstrate more coherent subspace partitions and stronger visual grounding.
 
-<div style="width:85%; margin: 0 auto; text-align: left;">
+<div style="width:70%; margin: 0 auto; text-align: left;">
   <img src="figs/iclr2026_teaser.png" style="width:100%;">
   <p>
     <em>
