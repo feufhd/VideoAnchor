@@ -71,10 +71,10 @@ To unify the evaluation interface and align with the `lmms_eval` framwork, pleas
 
 ## Citation
 ```
-@article{wang2025videoanchor,
+@article{videoanchor,
   title={VideoAnchor: Reinforcing Subspace-Structured Visual Cues for Coherent Visual-Spatial Reasoning},
   author={Wang, Zhaozhi and Zhang, Tong and Guo, Mingyue and Wang, Yaowei and Ye, Qixiang},
-  journal={arXiv preprint arXiv:2509.25151},
-  year={2025}
+  booktitle={The Fourteenth International Conference on Learning Representations},
+  year={2026},
 }
 ```
