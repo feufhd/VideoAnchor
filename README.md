@@ -29,10 +29,10 @@ Multimodal Large Language Models (MLLMs) have achieved impressive progress in vi
 
 Please follow the steps below to set up the environment and integrate VideoAnchor for VSI-Bench evaluation:
 
-- **Environment Setup**  
+### 1. Environment Setup
    Refer to the [thinking-in-space repository](https://github.com/vision-x-nyu/thinking-in-space) and [SSC-Py-CUDA](https://github.com/XHMY/SSC-Py-CUDA) for environment installation instructions, which we gratefully acknowledge. 
 
-- **Install SSC**  
+### 2. Install SSC
    ```bash
    cd SSC-Py-CUDA
    pip install -e .
@@ -41,7 +41,7 @@ Please follow the steps below to set up the environment and integrate VideoAncho
 
 ### 3. Integrate Model Wrappers
 
-To unify the evaluation interface and align with the `lmms_eval` framwork, please relocate the following files:
+To unify the evaluation interface and align with the `lmms_eval` framework, please relocate the following files:
 
 - **Core entry & API**
   - Move `lmms_eval_general/__main__.py` → `lmms_eval/__main__.py`
@@ -55,10 +55,10 @@ To unify the evaluation interface and align with the `lmms_eval` framwork, pleas
   - `qwen2.5vl/qwen2_5_vl.py`
 
 
-4. **Update Dependencies**  
+### 4. Update Dependencies
    Move other model files to the right places in *transformers* or the model folder.
 
-5. **Evaluation**  
+### 5. Evaluation
    Refer to the [thinking-in-space repository](https://github.com/vision-x-nyu/thinking-in-space) for the evaluation.
 
 ***We will release the code of VideoAnchor implementation with [FlashBias](https://github.com/thuml/FlashBias) recently.***
